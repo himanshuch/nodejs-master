@@ -4,13 +4,41 @@
 */
 
 const http = require("http");
+const https = require("https");
 const url = require("url");
+const config = require("./config");
 const StringDecoder = require("string_decoder").StringDecoder;
+const fs = require("fs");
+const handlers = require("./lib/handlers");
+const helpers = require("./lib/helpers");
+const _data = require("./lib/data");
 
-const server = http.createServer(function(req, res){
 
+let httpServer = http.createServer(function(req, res){
+	unifiedServer(req, res);
+});
+
+httpServer.listen(config.httpPort, function(){
+	console.log("server listening in port "+ config.httpPort);
+});
+
+var httpsServerOption ={
+	'key' : fs.readFileSync('./https/key.pm'),
+	'cert': fs.readFileSync('./https/cert.pm')
+}
+
+let httpsServer = https.createServer(httpsServerOption, function(req, res){
+	unifiedServer(req, res);
+});
+
+httpsServer.listen(config.httpsPort, function(){
+	console.log("server listening in port "+ config.httpsPort);
+})
+
+const unifiedServer = (req, res)=> {
 	const parsedUrl = url.parse(req.url, true);
 	const path = parsedUrl.pathname;
+	//trim path having "/" in front or back
 	const trimmedPath = path.replace(/^\/+|\/+$/g, '');
 
 	const queryStringObject = parsedUrl.query;
@@ -33,7 +61,7 @@ const server = http.createServer(function(req, res){
 			queryStringObject: queryStringObject,
 			method: method,
 			headers: headers,
-			payload: buffer
+			payload: helpers.parseToJSONObject(buffer)
 		}
 
 		//Choose handler
@@ -55,24 +83,13 @@ const server = http.createServer(function(req, res){
 
 	
 	console.log("Request received on path: "+trimmedPath);
-
-});
-
-server.listen(3000, function(){
-	console.log("server listening in 3000 port.")
-})
-
-//Defining handler
-let handlers ={};
-
-handlers.hello = function(data, callback){
-	callback(200, {"hello": "Hello World"});
-}
-
-handlers.notFound = function(data, callback){
-	callback(404);
 }
 
 const router = {
-	"hello" : handlers.hello
+	"ping" : handlers.ping,
+	"users" : handlers.users,
+	"tokens" : handlers.tokens,
+	"menu" : handlers.menu,
+	"cart" : handlers.cart,
+	"pay" : handlers.pay
 }
